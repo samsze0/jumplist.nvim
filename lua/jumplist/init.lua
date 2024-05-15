@@ -3,6 +3,14 @@
 ---@type JumpSubscriber[]
 local jumps_subscribers = {}
 
+---@alias JumplistNotifier { info?: fun(mesasge: string), warn?: fun(message: string), error?: fun(message: string) }
+---@type JumplistNotifier
+local notifier = {
+  info = function(message) vim.notify(message, vim.log.levels.INFO) end,
+  warn = function(message) vim.notify(message, vim.log.levels.WARN) end,
+  error = function(message) vim.notify(message, vim.log.levels.ERROR) end,
+}
+
 local M = {}
 
 ---@param callback JumpSubscriber
@@ -15,16 +23,20 @@ M.subscribe = function(callback) table.insert(jumps_subscribers, callback) end
 ---@type table<number, _JumpNode>
 M.current_jump = {}
 
--- TODO: move to config
-local debug = true
-
 -- FIX: Quickly jumping back and forward crashes window, regardless of whether there is a next node
 
 local ag = vim.api.nvim_create_augroup("Jump", { clear = true })
 
----@param opts? { }
+---@alias JumplistOptions { notifier?: JumplistNotifier }
+---@param opts? JumplistOptions
 M.setup = function(opts)
-  opts = vim.tbl_extend("force", {}, opts or {})
+  opts = vim.tbl_extend("force", {
+    notifier = notifier,
+  }, opts or {})
+  ---@cast opts JumplistOptions
+
+  notifier = opts.notifier
+
   vim.api.nvim_create_autocmd("WinClosed", {
     group = ag,
     callback = function(ctx)
@@ -149,18 +161,13 @@ end
 ---@param win_id? number
 function M.jump_back(win_id)
   win_id = win_id or vim.api.nvim_get_current_win()
-  if debug then
-    vim.info(
-      ("Jumping back from\n%s"):format(vim.inspect(M.current_jump[win_id]))
-    )
-  end
   if not M.current_jump[win_id] then
-    vim.info("No jumps for window " .. win_id)
+    notifier.info("No jumps for window " .. tostring(win_id))
     return
   end
   if cursor_on_current_jump(win_id) then
     if M.current_jump[win_id].prev == nil then
-      vim.info("No previous jump")
+      notifier.info("No previous jump")
       return
     end
 
@@ -182,18 +189,13 @@ end
 ---@param win_id? number
 function M.jump_forward(win_id)
   win_id = win_id or vim.api.nvim_get_current_win()
-  if debug then
-    vim.info(
-      ("Jumping forward from\n%s"):format(vim.inspect(M.current_jump[win_id]))
-    )
-  end
   if not M.current_jump[win_id] then
-    vim.warn("No jumps for window", win_id)
+    notifier.warn("No jumps for window " .. tostring(win_id))
     return
   end
   local next = M.current_jump[win_id].next
   if #next == 0 then
-    vim.warn("No next jump")
+    notifier.warn("No next jump")
     return
   end
   if not cursor_on_current_jump(win_id) then
