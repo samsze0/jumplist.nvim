@@ -217,7 +217,7 @@ end
 
 -- Get the latest jump node for a window
 --
----@param win_id number
+---@param win_id? number
 ---@return _JumpNode?
 function M.get_latest_jump(win_id)
   win_id = win_id or vim.api.nvim_get_current_win()
