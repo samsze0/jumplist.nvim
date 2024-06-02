@@ -23,6 +23,10 @@ jumplist.jump_back()
 jumplist.jump_forward()
 ```
 
+## How it works
+
+The best way to understand how this jumplist works is to go through the test.
+
 ## License
 
 MIT

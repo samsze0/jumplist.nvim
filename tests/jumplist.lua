@@ -56,6 +56,12 @@ local function assert_jumplist(opts)
   end
 end
 
+-- Understanding the notations:
+-- x: current jump
+-- <-: current cursor position
+-- ?: not a jump. Not present in jumplist
+-- |: separator between jumps. For representing a list of jumps
+
 -- save
 -- x a(line 1, pinned) <-
 
