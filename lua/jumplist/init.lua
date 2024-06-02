@@ -17,7 +17,7 @@ local M = {}
 M.subscribe = function(callback) table.insert(jumps_subscribers, callback) end
 
 ---@alias Jump { filename: string, line: number, col: number, time: number, text: string }
----@alias _JumpNode { value: Jump, next: _JumpNode[], prev: _JumpNode | nil }
+---@alias _JumpNode { value: Jump, next: _JumpNode[], prev: _JumpNode | nil, pinned: boolean }
 
 -- Map of window id to jump node
 ---@type table<number, _JumpNode>
@@ -144,13 +144,15 @@ function M.save(win_id)
 
   local jump = create_jump(win_id)
 
-  local node = new_node(jump)
-  if not M.current_jump[win_id] then
-    M.current_jump[win_id] = node
+  local new = new_node(jump)
+  new.pinned = true
+  local current = M.current_jump[win_id]
+  if not current then
+    M.current_jump[win_id] = new
   else
-    table.insert(M.current_jump[win_id].next, node)
-    node.prev = M.current_jump[win_id]
-    M.current_jump[win_id] = node
+    table.insert(current.next, new)
+    new.prev = current
+    M.current_jump[win_id] = new
   end
 
   notify_subscribers(win_id)
@@ -161,23 +163,26 @@ end
 ---@param win_id? number
 function M.jump_back(win_id)
   win_id = win_id or vim.api.nvim_get_current_win()
-  if not M.current_jump[win_id] then
+
+  local current = M.current_jump[win_id]
+  if not current then
     notifier.info("No jumps for window " .. tostring(win_id))
     return
   end
   if cursor_on_current_jump(win_id) then
-    if M.current_jump[win_id].prev == nil then
+    if current.prev == nil then
       notifier.info("No previous jump")
       return
     end
 
-    M.current_jump[win_id] = M.current_jump[win_id].prev
+    M.current_jump[win_id] = current.prev
     jump_to_current(win_id)
   else
     local jump = create_jump(win_id)
-    local node = new_node(jump)
-    table.insert(M.current_jump[win_id].next, node)
-    node.prev = M.current_jump[win_id]
+    local new = new_node(jump)
+    new.pinned = false
+    table.insert(current.next, new)
+    new.prev = current
     jump_to_current(win_id)
   end
 
@@ -189,37 +194,41 @@ end
 ---@param win_id? number
 function M.jump_forward(win_id)
   win_id = win_id or vim.api.nvim_get_current_win()
-  if not M.current_jump[win_id] then
+
+  local current = M.current_jump[win_id]
+  if not current then
     notifier.warn("No jumps for window " .. tostring(win_id))
     return
   end
-  local next = M.current_jump[win_id].next
-  if #next == 0 then
+  local nexts = current.next
+  if #nexts == 0 then
     notifier.warn("No next jump")
     return
   end
-  local next = next[#next]
+  local next = nexts[#nexts]
 
   if not cursor_on_current_jump(win_id) then
     -- Append a new jump in the middle
-    local current_jump = M.current_jump[win_id]
     local new_jump = create_jump(win_id)
-    local node = new_node(new_jump)
-    node.prev = current_jump
-    node.next = { next }
-    table.insert(current_jump.next, node)
-    next.prev = node
+    local new = new_node(new_jump)
+
+    new.prev = current
+    table.insert(current.next, new)
+
+    new.next = { next }
+    next.prev = new
+
+    current = new
+    M.current_jump[win_id] = current
+  end
+
+  if next.pinned or #next.next > 0 then
     M.current_jump[win_id] = next
-    jump_to(next.value)
+    jump_to_current(win_id)
   else
-    if #next.next == 0 then
-      local jump = next.value
-      jump_to(jump)
-      table.remove(M.current_jump[win_id].next)
-    else
-      M.current_jump[win_id] = next
-      jump_to_current(win_id)
-    end
+    -- If next node is not pinned nor there is nodes after next, jump to it but remove it from the jumplist
+    table.remove(current.next, #current.next)
+    jump_to(next.value)
   end
 
   notify_subscribers(win_id)

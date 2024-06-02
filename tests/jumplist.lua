@@ -31,7 +31,8 @@ T.assert_deep_eq(jumplist.current_jump, {
       line = 1,
       col = 0,
       text = "line 1",
-    }
+    },
+    pinned = true
   }
 })
 jumplist.current_jump[win_id].value.time = _time
@@ -56,10 +57,11 @@ local function assert_jumplist(opts)
 end
 
 -- save
--- x a(line 1) <-
+-- x a(line 1, pinned) <-
 
 -- navigate
--- x a(line 1)
+--  ?b(line 6) <-
+-- x a(line 1, pinned)
 
 vim.cmd("normal! 5j3l")  -- Move to line 6
 T.assert_eq(vim.api.nvim_get_current_line(), "line 6")
@@ -67,22 +69,22 @@ assert_jumplist({ current_line = "line 1" })
 
 -- jump back
 --   b(line 6)
--- x a(line 1) <-
+-- x a(line 1, pinned) <-
 
 jumplist.jump_back()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 1")
 assert_jumplist({ current_line = "line 1", next_lines = { "line 6" } })
 
 -- navigate
---   b(line 6)
--- x a(line 1)
+--   b(line 6) |  ?c(line 2) <-
+-- x a(line 1, pinned)
 
 vim.cmd("normal! 1j")  -- Move to line 2
 T.assert_eq(vim.api.nvim_get_current_line(), "line 2")
 assert_jumplist({ current_line = "line 1", next_lines = { "line 6" } })
 
 -- jump back
---   c(line 2)
+--   b(line 6) | c(line 2)
 -- x a(line 1) <-
 
 jumplist.jump_back()
@@ -90,206 +92,184 @@ T.assert_eq(vim.api.nvim_get_current_line(), "line 1")
 assert_jumplist({ current_line = "line 1", next_lines = { "line 6", "line 2" } })
 
 -- jump forward
---     <-
--- x a(line 1)
+--   b(line 6) |  ?c(line 2) <-
+-- x a(line 1, pinned)
 
 jumplist.jump_forward()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 2")
 assert_jumplist({ current_line = "line 1", next_lines = { "line 6" } })
 
--- -- navigate back to a
--- -- x a(line 1) <-
+-- navigate to a
+--   b(line 6)
+-- x a(line 1, pinned) <-
 
--- vim.cmd("normal! 1k")  -- Move to line 1
--- T.assert_eq(vim.api.nvim_get_current_line(), "line 1")
--- assert_jumplist({ current_line = "line 1", next_lines = { "line 6" } })
+vim.cmd("normal! 1k")  -- Move to line 1
+T.assert_eq(vim.api.nvim_get_current_line(), "line 1")
+assert_jumplist({ current_line = "line 1", next_lines = { "line 6" } })
 
--- -- jump forward
--- --     <-
--- -- x a(line 1)
+-- jump forward
+--   ?b(line 6) <-
+-- x a(line 1, pinned)
 
--- jumplist.jump_forward()
--- T.assert_eq(vim.api.nvim_get_current_line(), "line 6")
--- assert_jumplist({ current_line = "line 1" })
+jumplist.jump_forward()
+T.assert_eq(vim.api.nvim_get_current_line(), "line 6")
+assert_jumplist({ current_line = "line 1" })
 
--- -- jump back
--- --   b(line 6)
--- -- x a(line 1) <-
-
--- jumplist.jump_back()
--- T.assert_eq(vim.api.nvim_get_current_line(), "line 1")
--- assert_jumplist({ current_line = "line 1", next_lines = { "line 6" } })
-
--- jump_back
---   i(line 2)
--- x a(line 1) <-
+-- jump back
+--   b(line 6)
+-- x a(line 1, pinned) <-
 
 jumplist.jump_back()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 1")
-assert_jumplist({ current_line = "line 1", next_lines = { "line 6", "line 2" } })
+assert_jumplist({ current_line = "line 1", next_lines = { "line 6" } })
 
 -- navigate
---   i(line 2)
+--   b(line 6) |  ?j(line 4) <-
 -- x a(line 1)
 
 vim.cmd("normal! 3j")  -- Move to line 4
 T.assert_eq(vim.api.nvim_get_current_line(), "line 4")
-assert_jumplist({ current_line = "line 1", next_lines = { "line 6", "line 2" } })
+assert_jumplist({ current_line = "line 1", next_lines = { "line 6" } })
 
 -- jump forward
--- x i(line 2)  <-
---   j(line 4)
---   a(line 1)
+--                ?b(line 6) <-
+--   b(line 6) | x j(line 4)
+--   a(line 1, pinned)
 
 jumplist.jump_forward()
-T.assert_eq(vim.api.nvim_get_current_line(), "line 2")
-assert_jumplist({ current_line = "line 2", prev_line = "line 4" })
+T.assert_eq(vim.api.nvim_get_current_line(), "line 6")
+assert_jumplist({ current_line = "line 4", prev_line = "line 1" })
 
 -- navigate
--- x i(line 2)
---   j(line 4)
---   a(line 1)
+--                ?e(line 7) <-
+--   b(line 6) | x j(line 4)
+--   a(line 1, pinned)
 
-vim.cmd("normal! 5j")  -- Move to line 7
+vim.cmd("normal! 1j")  -- Move to line 7
 T.assert_eq(vim.api.nvim_get_current_line(), "line 7")
-assert_jumplist({ current_line = "line 2", prev_line = "line 4" })
+assert_jumplist({ current_line = "line 4", prev_line = "line 1" })
 
 -- save
--- x e(line 7) <-
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                x e(line 7, pinned) <-
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 jumplist.save()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 7")
-assert_jumplist({ current_line = "line 7", prev_line = "line 2" })
+assert_jumplist({ current_line = "line 7", prev_line = "line 4" })
 
 -- navigate
--- x e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                 ?f(line 10) <-
+--                x e(line 7, pinned)
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 vim.cmd("normal! 3j")  -- Move to line 10
 T.assert_eq(vim.api.nvim_get_current_line(), "line 10")
-assert_jumplist({ current_line = "line 7", prev_line = "line 2" })
+assert_jumplist({ current_line = "line 7", prev_line = "line 4" })
 
 -- jump back
---   f(line 10)
--- x e(line 7) <-
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                  f(line 10)
+--                x e(line 7, pinned) <-
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 jumplist.jump_back()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 7")
-assert_jumplist({ current_line = "line 7", prev_line = "line 2", next_lines = { "line 10" } })
+assert_jumplist({ current_line = "line 7", prev_line = "line 4", next_lines = { "line 10" } })
 
 -- navigate
---   f(line 10)
--- x e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                  f(line 10) |  ?g(line 9) <-
+--                x e(line 7, pinned)
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 vim.cmd("normal! 2j")  -- Move to line 9
 T.assert_eq(vim.api.nvim_get_current_line(), "line 9")
-assert_jumplist({ current_line = "line 7", prev_line = "line 2", next_lines = { "line 10" } })
+assert_jumplist({ current_line = "line 7", prev_line = "line 4", next_lines = { "line 10" } })
 
 -- jump back
---   g(line 9)
--- x e(line 7) <-
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                  f(line 10) |  g(line 9)
+--                x e(line 7, pinned) <-
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 jumplist.jump_back()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 7")
-assert_jumplist({ current_line = "line 7", prev_line = "line 2", next_lines = { "line 10", "line 9" } })
+assert_jumplist({ current_line = "line 7", prev_line = "line 4", next_lines = { "line 10", "line 9" } })
 
 -- navigate
---   g(line 9)
--- x e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                  f(line 10) |  g(line 9) |  ?h(line 8) <-
+--                x e(line 7, pinned)
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 vim.cmd("normal! 1j")  -- Move to line 8
 T.assert_eq(vim.api.nvim_get_current_line(), "line 8")
-assert_jumplist({ current_line = "line 7", prev_line = "line 2", next_lines = { "line 10", "line 9" } })
+assert_jumplist({ current_line = "line 7", prev_line = "line 4", next_lines = { "line 10", "line 9" } })
 
 -- jump forward
--- x g(line 9) <-
---   h(line 8)
---   e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                                             ?g(line 9) <-
+--                  f(line 10) |  g(line 9) | x h(line 8)
+--                  e(line 7, pinned)
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 jumplist.jump_forward()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 9")
-assert_jumplist({ current_line = "line 9", prev_line = "line 8" })
+assert_jumplist({ current_line = "line 8", prev_line = "line 7" })
 
 -- navigate
--- x g(line 9)
---   h(line 8)
---   e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                                              ?k(line 5) <-
+--                  f(line 10) |  g(line 9) | x h(line 8)
+--                  e(line 7, pinned)
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 vim.cmd("normal! 4k")  -- Move to line 5
 T.assert_eq(vim.api.nvim_get_current_line(), "line 5")
-assert_jumplist({ current_line = "line 9", prev_line = "line 8" })
+assert_jumplist({ current_line = "line 8", prev_line = "line 7" })
 
 -- jump back
---   k(line 5)
--- x g(line 9) <-
---   h(line 8)
---   e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
-
-jumplist.jump_back()
-T.assert_eq(vim.api.nvim_get_current_line(), "line 9")
-assert_jumplist({ current_line = "line 9", prev_line = "line 8", next_lines = { "line 5" } })
-
--- jump back
---   k(line 5)
---   g(line 9)
--- x h(line 8) <-
---   e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                                              k(line 5)
+--                  f(line 10) |  g(line 9) | x h(line 8) <-
+--                  e(line 7, pinned)
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 jumplist.jump_back()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 8")
-assert_jumplist({ current_line = "line 8", prev_line = "line 7", next_lines = { "line 9" } })
+assert_jumplist({ current_line = "line 8", prev_line = "line 7", next_lines = { "line 5" } })
+
+-- jump back
+--                                              k(line 5)
+--                  f(line 10) |  g(line 9) |   h(line 8)
+--                x e(line 7, pinned) <-
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
+
+jumplist.jump_back()
+T.assert_eq(vim.api.nvim_get_current_line(), "line 7")
+assert_jumplist({ current_line = "line 7", prev_line = "line 4", next_lines = { "line 10", "line 9", "line 8" } })
 
 -- jump forward
---   k(line 5)
--- x g(line 9) <-
---   h(line 8)
---   e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                                              k(line 5)
+--                  f(line 10) |  g(line 9) | x h(line 8) <-
+--                  e(line 7, pinned) <-
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 jumplist.jump_forward()
-T.assert_eq(vim.api.nvim_get_current_line(), "line 9")
-assert_jumplist({ current_line = "line 9", prev_line = "line 8", next_lines = { "line 5" } })
+T.assert_eq(vim.api.nvim_get_current_line(), "line 8")
+assert_jumplist({ current_line = "line 8", prev_line = "line 7", next_lines = { "line 5" } })
 
 -- jump forward
---     <-
--- x g(line 9)
---   h(line 8)
---   e(line 7)
---   i(line 2)
---   j(line 4)
---   a(line 1)
+--                                             ?k(line 5) <-
+--                  f(line 10) |  g(line 9) | x h(line 8)
+--                  e(line 7, pinned) <-
+--   b(line 6)  |   j(line 4)
+--   a(line 1, pinned)
 
 jumplist.jump_forward()
 T.assert_eq(vim.api.nvim_get_current_line(), "line 5")
-assert_jumplist({ current_line = "line 9", prev_line = "line 8" })
+assert_jumplist({ current_line = "line 8", prev_line = "line 7" })
