@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/samsze0/test.nvim/main/nvim-test-runner.schema.json",
+  "testDependencies": [
+  ]
+}

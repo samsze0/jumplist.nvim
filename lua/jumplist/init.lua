@@ -198,18 +198,28 @@ function M.jump_forward(win_id)
     notifier.warn("No next jump")
     return
   end
-  if not cursor_on_current_jump(win_id) then
-    M.current_jump[win_id].value = create_jump(win_id) -- Update current jump
-  end
+  local next = next[#next]
 
-  local node = next[#next]
-  if #node.next == 0 then
-    local jump = node.value
-    jump_to(jump)
-    table.remove(next, #next)
+  if not cursor_on_current_jump(win_id) then
+    -- Append a new jump in the middle
+    local current_jump = M.current_jump[win_id]
+    local new_jump = create_jump(win_id)
+    local node = new_node(new_jump)
+    node.prev = current_jump
+    node.next = { next }
+    table.insert(current_jump.next, node)
+    next.prev = node
+    M.current_jump[win_id] = next
+    jump_to(next.value)
   else
-    M.current_jump[win_id] = node
-    jump_to_current(win_id)
+    if #next.next == 0 then
+      local jump = next.value
+      jump_to(jump)
+      table.remove(M.current_jump[win_id].next)
+    else
+      M.current_jump[win_id] = next
+      jump_to_current(win_id)
+    end
   end
 
   notify_subscribers(win_id)

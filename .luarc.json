@@ -6,7 +6,7 @@
       "lua",
       "$VIMRUNTIME/lua",
       "${3rd}/luv/library",
-      ".tests/mini.test/lua"
+      ".test/lua"
     ],
     "checkThirdParty": false
   }
