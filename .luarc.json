@@ -9,5 +9,11 @@
       ".test/lua"
     ],
     "checkThirdParty": false
+  },
+  "diagnostics": {
+    "groupseverity": {
+      "await": "warning",
+      "strong": "warning"
+    }
   }
 }
